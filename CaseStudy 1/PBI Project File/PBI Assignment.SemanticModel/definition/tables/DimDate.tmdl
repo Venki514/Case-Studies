@@ -1,0 +1,203 @@
+table DimDate
+	lineageTag: b8fe8ffd-41d5-4b02-ac2a-db3414ba627a
+	dataCategory: Time
+
+	column Date
+		dataType: dateTime
+		isKey
+		formatString: Long Date
+		lineageTag: 167c9b49-a2c1-4660-aa79-46de4017922b
+		summarizeBy: none
+		sourceColumn: Date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column Year
+		dataType: int64
+		formatString: 0
+		lineageTag: a4472080-165d-4a91-8556-de4a4a07fc43
+		summarizeBy: none
+		sourceColumn: Year
+
+		annotation SummarizationSetBy = Automatic
+
+	column QuarterNum
+		dataType: int64
+		formatString: 0
+		lineageTag: 93006cc9-4187-4a39-937f-5e8836f5eb46
+		summarizeBy: none
+		sourceColumn: QuarterNum
+
+		annotation SummarizationSetBy = Automatic
+
+	column Quarter
+		dataType: string
+		lineageTag: 3d0c1cb8-9fcc-4271-9acb-872f15512722
+		summarizeBy: none
+		sourceColumn: Quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthNum
+		dataType: int64
+		formatString: 0
+		lineageTag: d98441e2-7be4-470e-bd5a-4564be79a24b
+		summarizeBy: none
+		sourceColumn: MonthNum
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthName
+		dataType: string
+		lineageTag: fc6bb446-0f6c-4a14-abc4-09c157299f96
+		summarizeBy: none
+		sourceColumn: MonthName
+		sortByColumn: MonthNum
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthNameLong
+		dataType: string
+		lineageTag: 00092400-1c9c-465c-a30e-c91d0a74e07d
+		summarizeBy: none
+		sourceColumn: MonthNameLong
+		sortByColumn: MonthNum
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column YearMonthSort
+		dataType: int64
+		formatString: 0
+		lineageTag: 2fa13ca5-9dbf-4786-add3-a6c2546c9d17
+		summarizeBy: none
+		sourceColumn: YearMonthSort
+
+		annotation SummarizationSetBy = Automatic
+
+	column YearMonth
+		dataType: string
+		lineageTag: ae922ea5-1927-47fa-87e9-85b7e5dcfc82
+		summarizeBy: none
+		sourceColumn: YearMonth
+
+		annotation SummarizationSetBy = Automatic
+
+	column YearQuarterSort
+		dataType: int64
+		formatString: 0
+		lineageTag: 5b4f4633-a56b-4fb2-9eea-a6b2f576035c
+		summarizeBy: none
+		sourceColumn: YearQuarterSort
+
+		annotation SummarizationSetBy = Automatic
+
+	column YearQuarter
+		dataType: string
+		lineageTag: 89ce9d09-414e-44e5-b550-19228dea0448
+		summarizeBy: none
+		sourceColumn: YearQuarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column EndOfMonthDate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 73b0b00f-0cda-4562-88fe-61ec83026a35
+		summarizeBy: none
+		sourceColumn: EndOfMonthDate
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column DayOfMonth
+		dataType: int64
+		formatString: 0
+		lineageTag: 0c8b9e60-d175-41bc-989d-98d3ed58a55c
+		summarizeBy: none
+		sourceColumn: DayOfMonth
+
+		annotation SummarizationSetBy = Automatic
+
+	column DayOfWeekNum
+		dataType: int64
+		formatString: 0
+		lineageTag: c455df93-aaac-4ec1-b127-727c8bc43b1a
+		summarizeBy: none
+		sourceColumn: DayOfWeekNum
+
+		annotation SummarizationSetBy = Automatic
+
+	column DayOfWeekName
+		dataType: string
+		lineageTag: 0aac6a3c-71d0-4c56-babd-64942f1f70f1
+		summarizeBy: none
+		sourceColumn: DayOfWeekName
+
+		annotation SummarizationSetBy = Automatic
+
+	column StartOfMonthDate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: b7ba6b59-6342-403d-a39e-3415bf3c23b5
+		summarizeBy: none
+		sourceColumn: StartOfMonthDate
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition DimDate = m
+		mode: import
+		source =
+				let
+				    SourceDataTable = FactProductPerformance,
+				    MinDateSource = List.Min(SourceDataTable[Date]),
+				    MaxDateSource = List.Max(SourceDataTable[Date]),
+				
+				    DefaultStartDate = #date(Date.Year(DateTime.LocalNow()), 1, 1),
+				    DefaultEndDate = #date(Date.Year(DateTime.LocalNow()), 12, 31),
+				
+				    StartDate = if MinDateSource = null then DefaultStartDate else MinDateSource,
+				    EndDate = if MaxDateSource = null then DefaultEndDate else MaxDateSource,
+				
+				    NumberOfDays = Duration.Days(EndDate - StartDate) + 1,
+				
+				    DateList = List.Dates(StartDate, NumberOfDays, #duration(1, 0, 0, 0)),
+				
+				    #"Converted to Table" = Table.FromList(DateList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+				    #"Renamed Date Column" = Table.RenameColumns(#"Converted to Table",{{"Column1", "Date"}}),
+				    #"Changed Date Type" = Table.TransformColumnTypes(#"Renamed Date Column",{{"Date", type date}}),
+				
+				    #"Added Year" = Table.AddColumn(#"Changed Date Type", "Year", each Date.Year([Date]), Int64.Type),
+				    #"Added QuarterNumber" = Table.AddColumn(#"Added Year", "QuarterNum", each Date.QuarterOfYear([Date]), Int64.Type),
+				    #"Added Quarter" = Table.AddColumn(#"Added QuarterNumber", "Quarter", each "Q" & Text.From([QuarterNum]), type text),
+				    #"Added MonthNumber" = Table.AddColumn(#"Added Quarter", "MonthNum", each Date.Month([Date]), Int64.Type),
+				    #"Added MonthNameShort" = Table.AddColumn(#"Added MonthNumber", "MonthName", each Date.ToText([Date], "MMM"), type text),
+				    #"Added MonthNameLong" = Table.AddColumn(#"Added MonthNameShort", "MonthNameLong", each Date.ToText([Date], "MMMM"), type text),
+				
+				    #"Added YearMonthSort" = Table.AddColumn(#"Added MonthNameLong", "YearMonthSort", each ([Year] * 100) + [MonthNum], Int64.Type),
+				    #"Added YearMonthText" = Table.AddColumn(#"Added YearMonthSort", "YearMonth", each Text.From([Year]) & " " & [MonthName], type text),
+				
+				    #"Added YearQuarterSort" = Table.AddColumn(#"Added YearMonthText", "YearQuarterSort", each ([Year] * 10) + [QuarterNum], Int64.Type),
+				    #"Added YearQuarterText" = Table.AddColumn(#"Added YearQuarterSort", "YearQuarter", each Text.From([Year]) & " " & [Quarter], type text),
+				
+				    #"Added DayOfMonth" = Table.AddColumn(#"Added YearQuarterText", "DayOfMonth", each Date.Day([Date]), Int64.Type),
+				    #"Added DayOfWeekNumber" = Table.AddColumn(#"Added DayOfMonth", "DayOfWeekNum", each Date.DayOfWeek([Date], Day.Monday)+1, Int64.Type),
+				    #"Added DayOfWeekName" = Table.AddColumn(#"Added DayOfWeekNumber", "DayOfWeekName", each Date.ToText([Date], "ddd"), type text),
+				
+				    #"Added StartOfMonthDate" = Table.AddColumn(#"Added DayOfWeekName", "StartOfMonthDate", each Date.StartOfMonth([Date]), type date),
+				    #"Added EndOfMonthDate" = Table.AddColumn(#"Added StartOfMonthDate", "EndOfMonthDate", each Date.EndOfMonth([Date]), type date)
+				in
+				    #"Added EndOfMonthDate"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

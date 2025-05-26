@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "ChandoluVenkatesh_PBI Assignment_DiligenceVault"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "c961f01c-b96b-49cc-a3b0-1218f1848967"
+  }
+}

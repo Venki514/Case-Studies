@@ -1,0 +1,4 @@
+relationship e80d3a22-0251-714b-c6a1-009d848d81ad
+	fromColumn: FactProductPerformance.Date
+	toColumn: DimDate.Date
+

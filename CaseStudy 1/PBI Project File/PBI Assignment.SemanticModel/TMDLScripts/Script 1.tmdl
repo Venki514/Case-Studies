@@ -1,0 +1,163 @@
+createOrReplace
+
+	table FactProductPerformance
+		lineageTag: 9f13d58c-f353-470e-b96b-8629b923b8ec
+
+		column Month
+			dataType: int64
+			formatString: 0
+			lineageTag: 7c5dd320-cfb1-44ca-9660-6bdf14de0658
+			summarizeBy: none
+			sourceColumn: Month
+
+			annotation SummarizationSetBy = User
+
+		column Year
+			dataType: int64
+			formatString: 0
+			lineageTag: f6f6df1a-3c2f-4c79-b15a-6c324037dcd9
+			summarizeBy: none
+			sourceColumn: Year
+
+			annotation SummarizationSetBy = User
+
+		column Date
+			dataType: dateTime
+			formatString: Long Date
+			lineageTag: 8851abe8-1855-48aa-a0a6-5937d3dc2020
+			summarizeBy: none
+			sourceColumn: Date
+
+			annotation SummarizationSetBy = Automatic
+
+			annotation UnderlyingDateTimeDataType = Date
+
+		column Firm
+			dataType: string
+			lineageTag: ca327a0d-40ec-47e6-a3f5-f413af840918
+			summarizeBy: none
+			sourceColumn: Firm
+
+			annotation SummarizationSetBy = Automatic
+
+		column 'Product Code'
+			dataType: string
+			lineageTag: 3cb0c5ff-d5a3-48fe-9bcc-b9af443a762b
+			summarizeBy: none
+			sourceColumn: Product Code
+
+			annotation SummarizationSetBy = Automatic
+
+		column 'Metric Type'
+			dataType: string
+			lineageTag: 12864df2-94b4-41b1-a1aa-80e1c92e4b8e
+			summarizeBy: none
+			sourceColumn: Metric Type
+
+			annotation SummarizationSetBy = Automatic
+
+		column Value
+			dataType: double
+			lineageTag: fc72110a-7f3f-47e5-9855-9b3377099ab1
+			summarizeBy: sum
+			sourceColumn: Value
+
+			annotation SummarizationSetBy = Automatic
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		column 'Unified Product Name'
+			dataType: string
+			lineageTag: 6f47eff3-bda8-4dae-b118-c0950a601580
+			summarizeBy: none
+			sourceColumn: Unified Product Name
+
+			annotation SummarizationSetBy = Automatic
+
+		column 'Product Category'
+			dataType: string
+			lineageTag: 72bdf613-b298-48ee-84b4-f42e5e4f0308
+			summarizeBy: none
+			sourceColumn: Product Category
+
+			annotation SummarizationSetBy = Automatic
+
+		partition FactProductPerformance = m
+			mode: import
+			source = ```
+					let
+					    Source = Csv.Document(File.Contents("C:\Users\Dell\Downloads\DiligenceVault\(PBI) Sample Time Series Data_DiligenceVault.csv"),[Delimiter=",", Columns=14, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+					    #"Removed Top Blank Row" = Table.Skip(Source,1),
+					    #"Transposed Table for Headers" = Table.Transpose(#"Removed Top Blank Row"),
+					
+					    #"Merged Header Parts" = Table.CombineColumns(
+					        #"Transposed Table for Headers",
+					        {"Column1", "Column2", "Column3", "Column4"},
+					        Combiner.CombineTextByDelimiter(" | ", QuoteStyle.None),
+					        "CombinedHeader"
+					    ),
+					    #"Transposed Table Back" = Table.Transpose(#"Merged Header Parts"),
+					    #"Promoted Combined Headers" = Table.PromoteHeaders(#"Transposed Table Back", [PromoteAllScalars=true]),
+					
+					    #"Transformed and Renamed Initial Columns" = Table.TransformColumns(#"Promoted Combined Headers", {
+					        {Table.ColumnNames(#"Promoted Combined Headers"){0}, each Int64.From(_), Int64.Type},
+					        {Table.ColumnNames(#"Promoted Combined Headers"){1}, each Int64.From(_), Int64.Type},
+					        {Table.ColumnNames(#"Promoted Combined Headers"){2}, each Date.FromText(_, "en-US"), type date} 
+					    }),
+					    #"Final Renamed Initial Columns" = Table.RenameColumns(#"Transformed and Renamed Initial Columns",{
+					        {Table.ColumnNames(#"Transformed and Renamed Initial Columns"){0}, "Month"},
+					        {Table.ColumnNames(#"Transformed and Renamed Initial Columns"){1}, "Year"},
+					        {Table.ColumnNames(#"Transformed and Renamed Initial Columns"){2}, "Date"}
+					    }),
+					
+					    #"Unpivoted Other Columns" = Table.UnpivotOtherColumns(#"Final Renamed Initial Columns", {"Date", "Month", "Year"}, "Attribute", "Value_Text"),
+					
+					    #"Split Attribute Column" = Table.SplitColumn(
+					        #"Unpivoted Other Columns",
+					        "Attribute",
+					        Splitter.SplitTextByDelimiter(" | ", QuoteStyle.Csv),
+					        {"Firm", "Product Code", "Product Category", "Metric Type"}
+					    ),
+					
+					    #"Cleaned and Typed Split Columns" = Table.TransformColumns(#"Split Attribute Column",{
+					        {"Firm", Text.Trim, type text},
+					        {"Product Code", Text.Trim, type text},
+					        {"Product Category", Text.Trim, type text},
+					        {"Metric Type", Text.Trim, type text}
+					    }),
+					
+					    #"Replaced Characters in Value" = Table.ReplaceValue(Table.ReplaceValue(Table.ReplaceValue(#"Cleaned and Typed Split Columns" , "$", "", Replacer.ReplaceText, {"Value_Text"}), ",", "", Replacer.ReplaceText, {"Value_Text"}), "%", "", Replacer.ReplaceText, {"Value_Text"}),
+					
+					    #"Added Value Column" = Table.AddColumn(#"Replaced Characters in Value", "Value", each
+					        let
+					            ValText = [Value_Text],
+					            Metric = [Metric Type],
+					            NumericVal = if ValText = null or ValText = "" then null
+					                         else if Metric = "Monthly Return" or Metric = "Cumulative Return" then
+					                            try Number.FromText(ValText) / 100 otherwise null
+					                         else
+					                            try Number.FromText(ValText) otherwise null
+					        in
+					            NumericVal,
+					        Decimal.Type
+					    ),
+					    #"Removed Value_Text Column" = Table.RemoveColumns(#"Added Value Column",{"Value_Text"}),
+					    #"Filtered Null Values" = Table.SelectRows(#"Removed Value_Text Column", each ([Value] <> null)),
+					
+					    #"Added Unified Product Name" = Table.AddColumn(#"Filtered Null Values", "Unified Product Name", each
+					        if [Firm]="Firm A" and ([Product Code]="Product AE1" or [Product Code]="Product A1") and [Product Category]="Equity" then "Firm A - Equity"
+					        else if [Firm]="Firm A" and ([Product Code]="Product AF1" or [Product Code]="Product A2") and [Product Category]="Fixed Income" then "Firm A - Fixed Income"
+					        else if [Firm]="Firm B" and ([Product Code]="Product BE1" or [Product Code]="Product B1") and [Product Category]="Equity" then "Firm B - Equity 1"
+					        else if [Firm]="Firm B" and ([Product Code]="Product BE2" or [Product Code]="Product B3") and [Product Category]="Equity" then "Firm B - Equity 2"
+					        else if [Firm]="Firm B" and ([Product Code]="Product BF1" or [Product Code]="Product B2") and [Product Category]="Fixed Income" then "Firm B - Fixed Income"
+					        else null, type text
+					    ),
+					    #"Filtered Rows with Unified Product Name" = Table.SelectRows(#"Added Unified Product Name", each ([Unified Product Name] <> null))
+					in
+					    #"Filtered Rows with Unified Product Name"
+					```
+
+		annotation PBI_NavigationStepName = Navigation
+
+		annotation PBI_ResultType = Table
+
