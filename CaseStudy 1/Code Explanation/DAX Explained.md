@@ -1,20 +1,3 @@
-```m
-partition _Measures = m
-    mode: import
-    source =
-            let
-                Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
-                #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}}),
-                #"Removed Columns" = Table.RemoveColumns(#"Changed Type",{"Column1"})
-            in
-                #"Removed Columns"
-```
-*   `Binary.FromText("i44FAA==", BinaryEncoding.Base64)`: "i44FAA==" is the Base64 representation of a very small, compressed piece of data.
-*   `Binary.Decompress(..., Compression.Deflate)`: Decompresses this binary data.
-*   `Json.Document(...)`: Parses the decompressed content as JSON. The string "i44FAA==" typically decodes and decompresses to something like `[[]]` or `[{}]` representing a minimal JSON structure for an empty table or a table with one empty row and no defined columns.
-*   `Table.FromRows(...)`: Creates a table from this. It often results in a table with one column named "Column1" and possibly one empty row.
-*   `#"Removed Columns" = Table.RemoveColumns(#"Changed Type",{"Column1"})`: This final step removes "Column1", leaving an empty table with no columns and no rows. This is the standard and correct way to create a measure table in Power BI if doing it via M.
-
 Now, for the DAX measures:
 
 ---
