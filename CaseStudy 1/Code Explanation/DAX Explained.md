@@ -1,5 +1,3 @@
-Okay, let's break down these DAX measures from your `_Measures` table. This table itself is typically an empty table in the model, used solely as a container to organize DAX measures. The M code for its partition confirms this:
-
 ```m
 partition _Measures = m
     mode: import
